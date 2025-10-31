@@ -4,596 +4,658 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Affise Analytics Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
-            color: #2c3e50;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        
-        .user-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-        }
-        
-        .logout-btn {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid white;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .logout-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            font-size: 18px;
-            color: #667eea;
-        }
-        
-        .error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: #c33;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .metric-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .metric-label {
-            font-size: 14px;
-            color: #7f8c8d;
-            margin-bottom: 8px;
-        }
-        
-        .metric-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        
-        .metric-value.currency::before {
-            content: '₽';
-            font-size: 20px;
-            margin-right: 4px;
-        }
-        
-        .filters {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .filters h3 {
-            margin-bottom: 15px;
-            color: #2c3e50;
-        }
-        
-        .filter-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .filter-group label {
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-        
-        .filter-group input,
-        .filter-group select {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #5568d3;
-        }
-        
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-        }
-        
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-        
-        .data-table {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        .data-table h3 {
-            padding: 20px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .table-wrapper {
-            overflow-x: auto;
-        }
-        
-        table {
+        .filter-dropdown {
+            position: relative;
+            display: inline-block;
             width: 100%;
-            border-collapse: collapse;
         }
-        
-        thead {
-            background: #f8f9fa;
-            position: sticky;
-            top: 0;
-        }
-        
-        th {
-            padding: 12px;
+        .filter-button {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
             text-align: left;
-            font-weight: 600;
-            color: #2c3e50;
-            border-bottom: 2px solid #e9ecef;
-            font-size: 13px;
+            cursor: pointer;
+            font-size: 14px;
         }
-        
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #f1f3f5;
-            font-size: 13px;
+        .filter-button:hover {
+            border-color: #9ca3af;
         }
-        
-        tbody tr:hover {
-            background: #f8f9fa;
+        .filter-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
         }
-        
-        .status-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
+        .filter-dropdown:hover .filter-menu {
+            display: block;
         }
-        
-        .status-active {
-            background: #d4edda;
-            color: #155724;
+        .filter-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
         }
-        
-        .status-paused {
-            background: #fff3cd;
-            color: #856404;
+        .filter-item:hover {
+            background: #f3f4f6;
         }
-        
-        .status-inactive {
-            background: #f8d7da;
-            color: #721c24;
+        .filter-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+        }
+        .sortable-header:hover {
+            background: #f3f4f6;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📊 Affise Analytics Dashboard</h1>
-        <div class="user-info">
-            <div>
-                <span>Пользователь: <strong id="username"></strong></span>
-            </div>
-            <button class="logout-btn" onclick="logout()">Выйти</button>
-        </div>
-    </div>
+    <div id="root"></div>
 
-    <div class="container">
-        <div id="loading" class="loading">Загрузка данных...</div>
-        <div id="error" class="error" style="display: none;"></div>
-        <div id="content" style="display: none;">
-            
-            <!-- Метрики -->
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">Общая прибыль (ОП)</div>
-                    <div class="metric-value currency" id="metric-op">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Общий рекламный бюджет (ОРБ)</div>
-                    <div class="metric-value currency" id="metric-orb">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Конверсии</div>
-                    <div class="metric-value" id="metric-conversions">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Активные офферы</div>
-                    <div class="metric-value" id="metric-offers">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Активные партнёры</div>
-                    <div class="metric-value" id="metric-partners">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Заказы</div>
-                    <div class="metric-value currency" id="metric-orders">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Доход</div>
-                    <div class="metric-value currency" id="metric-income">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">ROMI</div>
-                    <div class="metric-value" id="metric-romi">0%</div>
-                </div>
-            </div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-            <!-- Фильтры -->
-            <div class="filters">
-                <h3>Фильтры</h3>
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>Дата от</label>
-                        <input type="date" id="filter-date-from">
-                    </div>
-                    <div class="filter-group">
-                        <label>Дата до</label>
-                        <input type="date" id="filter-date-to">
-                    </div>
-                    <div class="filter-group">
-                        <label>Оффер</label>
-                        <select id="filter-offer">
-                            <option value="">Все офферы</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Партнёр</label>
-                        <input type="text" id="filter-partner" placeholder="ID партнёра">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="applyFilters()">Применить фильтры</button>
-                    <button class="btn btn-secondary" onclick="resetFilters()">Сбросить</button>
-                </div>
-            </div>
-
-            <!-- Таблица данных -->
-            <div class="data-table">
-                <h3>Конверсии (<span id="table-count">0</span> записей)</h3>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Дата</th>
-                                <th>Оффер</th>
-                                <th>Партнёр</th>
-                                <th>Статус</th>
-                                <th>Сумма</th>
-                                <th>Доход</th>
-                                <th>Прибыль</th>
-                                <th>Goal</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ВАЖНО: Замените на URL вашего API на Railway
         const API_URL = 'https://affise-backend-production.up.railway.app';
-        
-        let allData = [];
-        let currentFilters = {};
 
-        // Проверка авторизации
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            const username = localStorage.getItem('username');
-            
-            if (!token || !username) {
-                window.location.href = 'login.html';
-                return false;
+        function App() {
+            const [token, setToken] = useState(localStorage.getItem('token'));
+            const [username, setUsername] = useState(localStorage.getItem('username'));
+            const [activeTab, setActiveTab] = useState('analytics');
+
+            if (!token) {
+                return <LoginPage onLogin={(t, u) => {
+                    setToken(t);
+                    setUsername(u);
+                    localStorage.setItem('token', t);
+                    localStorage.setItem('username', u);
+                }} />;
             }
-            
-            document.getElementById('username').textContent = username;
-            return token;
-        }
 
-        // Выход
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            window.location.href = 'login.html';
-        }
-// Получить дату 30 дней назад
-function getDefaultDateFrom() {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
-}
+            return (
+                <div>
+                    <div style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <h1 style={{fontSize: '24px', marginBottom: '10px'}}>📊 Affise Analytics Dashboard</h1>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                                <span>Пользователь: <strong>{username}</strong></span>
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem('token');
+                                        localStorage.removeItem('username');
+                                        setToken(null);
+                                    }}
+                                    style={{
+                                        padding: '8px 16px',
+                                        background: 'rgba(255,255,255,0.2)',
+                                        color: 'white',
+                                        border: '1px solid white',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Выход
+                                </button>
+                            </div>
+                        </div>
+                        <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+                            <button
+                                style={{
+                                    padding: '10px 20px',
+                                    background: activeTab === 'analytics' ? 'white' : 'rgba(255,255,255,0.2)',
+                                    color: activeTab === 'analytics' ? '#667eea' : 'white',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontWeight: activeTab === 'analytics' ? '600' : 'normal'
+                                }}
+                                onClick={() => setActiveTab('analytics')}
+                            >
+                                Аналитика
+                            </button>
+                            <button
+                                style={{
+                                    padding: '10px 20px',
+                                    background: activeTab === 'limits' ? 'white' : 'rgba(255,255,255,0.2)',
+                                    color: activeTab === 'limits' ? '#667eea' : 'white',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontWeight: activeTab === 'limits' ? '600' : 'normal'
+                                }}
+                                onClick={() => setActiveTab('limits')}
+                            >
+                                Управление лимитами
+                            </button>
+                        </div>
+                    </div>
 
-// Получить сегодняшнюю дату
-function getDefaultDateTo() {
-    return new Date().toISOString().split('T')[0];
-}
-        // Загрузка данных
-        async function loadData() {
-            const token = checkAuth();
-            if (!token) return;
-
-            try {
-               // Получаем даты из фильтров или используем последние 30 дней
-const dateFrom = document.getElementById('dateFrom')?.value || getDefaultDateFrom();
-const dateTo = document.getElementById('dateTo')?.value || getDefaultDateTo();
-
-const response = await fetch(`${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.status === 401) {
-                    logout();
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error(`Ошибка загрузки: ${response.status}`);
-                }
-
-                const data = await response.json();
-                allData = data;
-                
-                updateMetrics(data);
-                updateFilters(data);
-                updateTable(data);
-                
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('content').style.display = 'block';
-                
-            } catch (error) {
-                console.error('Ошибка:', error);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('error').textContent = 'Ошибка загрузки данных: ' + error.message;
-            }
-        }
-
-        // Обновление метрик
-        function updateMetrics(data) {
-            // Фильтруем данные для метрик
-            const validGoals = [1, 2, 5, 10];
-            const confirmedData = data.filter(d => 
-                validGoals.includes(parseInt(d.goal_value)) && 
-                d.status === 'confirmed'
+                    <div style={{maxWidth: '1400px', margin: '0 auto', padding: '20px'}}>
+                        {activeTab === 'analytics' && <Dashboard2 token={token} />}
+                        {activeTab === 'limits' && <Dashboard1 token={token} />}
+                    </div>
+                </div>
             );
-            
-            // ОП (Общая прибыль)
-            const op = confirmedData.reduce((sum, d) => sum + parseFloat(d.earnings || 0), 0);
-            document.getElementById('metric-op').textContent = op.toFixed(2);
-            
-            // ОРБ (Общий рекламный бюджет)
-            const orb = confirmedData.reduce((sum, d) => sum + parseFloat(d.revenue || 0), 0);
-            document.getElementById('metric-orb').textContent = orb.toFixed(2);
-            
-            // Конверсии
-            const conversions = confirmedData.filter(d => parseFloat(d.revenue || 0) !== 0).length;
-            document.getElementById('metric-conversions').textContent = conversions;
-            
-            // Активные офферы (earnings >= 5000)
-            const offerEarnings = {};
-            confirmedData.forEach(d => {
-                const offerId = d.offer_id;
-                if (!offerEarnings[offerId]) offerEarnings[offerId] = 0;
-                offerEarnings[offerId] += parseFloat(d.earnings || 0);
-            });
-            const activeOffers = Object.values(offerEarnings).filter(e => e >= 5000).length;
-            document.getElementById('metric-offers').textContent = activeOffers;
-            
-            // Активные партнёры (earnings >= 5000)
-            const partnerEarnings = {};
-            confirmedData.forEach(d => {
-                const partnerId = d.partner_id;
-                if (!partnerEarnings[partnerId]) partnerEarnings[partnerId] = 0;
-                partnerEarnings[partnerId] += parseFloat(d.earnings || 0);
-            });
-            const activePartners = Object.values(partnerEarnings).filter(e => e >= 5000).length;
-            document.getElementById('metric-partners').textContent = activePartners;
-            
-            // Заказы (goal_value = 4, БЕЗ фильтра по status)
-            const orders = data
-                .filter(d => parseInt(d.goal_value) === 4)
-                .reduce((sum, d) => sum + parseFloat(d.sum || 0), 0);
-            document.getElementById('metric-orders').textContent = orders.toFixed(2);
-            
-            // Доход (goal_value в [1,2,5,10], БЕЗ фильтра по status)
-            const income = data
-                .filter(d => validGoals.includes(parseInt(d.goal_value)))
-                .reduce((sum, d) => sum + parseFloat(d.sum || 0), 0);
-            document.getElementById('metric-income').textContent = income.toFixed(2);
-            
-            // ROMI
-            const romi = orb > 0 ? ((income / orb) * 100) : 0;
-            document.getElementById('metric-romi').textContent = romi.toFixed(2) + '%';
         }
 
-        // Обновление фильтров
-        function updateFilters(data) {
-            const offerSelect = document.getElementById('filter-offer');
-            const offers = [...new Set(data.map(d => d.offer_id))].sort((a, b) => a - b);
-            
-            offers.forEach(offerId => {
-                const option = document.createElement('option');
-                option.value = offerId;
-                option.textContent = `Оффер ${offerId}`;
-                offerSelect.appendChild(option);
-            });
+        function LoginPage({ onLogin }) {
+            const [username, setUsername] = useState('admin');
+            const [password, setPassword] = useState('admin123');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError('');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('username', username);
+                    formData.append('password', password);
+
+                    const response = await fetch(`${API_URL}/token`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Неверные учетные данные');
+                    }
+
+                    const data = await response.json();
+                    onLogin(data.access_token, username);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    minHeight: '100vh',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                }}>
+                    <div style={{
+                        background: 'white',
+                        padding: '40px',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                        width: '100%',
+                        maxWidth: '400px'
+                    }}>
+                        <h1 style={{fontSize: '28px', marginBottom: '30px', textAlign: 'center', color: '#333'}}>
+                            📊 Affise Dashboard
+                        </h1>
+
+                        <form onSubmit={handleLogin}>
+                            <div style={{marginBottom: '20px'}}>
+                                <label style={{display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333'}}>
+                                    Логин
+                                </label>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px',
+                                        border: '1px solid #ddd',
+                                        borderRadius: '6px',
+                                        fontSize: '14px',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+                            <div style={{marginBottom: '20px'}}>
+                                <label style={{display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333'}}>
+                                    Пароль
+                                </label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px',
+                                        border: '1px solid #ddd',
+                                        borderRadius: '6px',
+                                        fontSize: '14px',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+                            {error && (
+                                <div style={{
+                                    background: '#fee',
+                                    color: '#c33',
+                                    padding: '12px',
+                                    borderRadius: '6px',
+                                    marginBottom: '20px',
+                                    fontSize: '14px'
+                                }}>
+                                    ❌ {error}
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    background: loading ? '#ccc' : '#667eea',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '16px',
+                                    fontWeight: '600',
+                                    cursor: loading ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {loading ? '⏳ Загрузка...' : '🔓 Вход'}
+                            </button>
+                        </form>
+
+                        <div style={{marginTop: '20px', padding: '15px', background: '#f0f0f0', borderRadius: '6px', fontSize: '12px', color: '#666'}}>
+                            <strong>Тестовые учетные данные:</strong><br/>
+                            admin / admin123<br/>
+                            user / user123
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
-        // Обновление таблицы
-        function updateTable(data) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-            
-            document.getElementById('table-count').textContent = data.length;
-            
-            // Показываем первые 100 записей
-            const displayData = data.slice(0, 100);
-            
-            displayData.forEach(row => {
-                const tr = document.createElement('tr');
-                
-                const statusClass = 
-                    row.status === 'confirmed' ? 'status-active' :
-                    row.status === 'pending' ? 'status-paused' :
-                    'status-inactive';
-                
-                tr.innerHTML = `
-                    <td>${row.id || '-'}</td>
-                    <td>${row.created_at ? new Date(row.created_at).toLocaleDateString('ru-RU') : '-'}</td>
-                    <td>${row.offer_id || '-'}</td>
-                    <td>${row.partner_id || '-'}</td>
-                    <td><span class="status-badge ${statusClass}">${row.status || '-'}</span></td>
-                    <td>₽${parseFloat(row.sum || 0).toFixed(2)}</td>
-                    <td>₽${parseFloat(row.revenue || 0).toFixed(2)}</td>
-                    <td>₽${parseFloat(row.earnings || 0).toFixed(2)}</td>
-                    <td>${row.goal_value || '-'}</td>
-                `;
-                
-                tbody.appendChild(tr);
-            });
-        }
+        function Dashboard2({ token }) {
+            const [conversions, setConversions] = useState([]);
+            const [offers, setOffers] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [metrics, setMetrics] = useState(null);
 
-        // Применение фильтров
-        function applyFilters() {
-            const dateFrom = document.getElementById('filter-date-from').value;
-            const dateTo = document.getElementById('filter-date-to').value;
-            const offerId = document.getElementById('filter-offer').value;
-            const partnerId = document.getElementById('filter-partner').value;
-            
-            let filtered = [...allData];
-            
-            if (dateFrom) {
-                filtered = filtered.filter(d => {
-                    const date = new Date(d.created_at);
-                    return date >= new Date(dateFrom);
+            const [selectedAdvertisers, setSelectedAdvertisers] = useState([]);
+            const [selectedOffers, setSelectedOffers] = useState([]);
+            const [dateFrom, setDateFrom] = useState('');
+            const [dateTo, setDateTo] = useState('');
+            const [sortField1, setSortField1] = useState('source');
+            const [sortDirection1, setSortDirection1] = useState('asc');
+
+            useEffect(() => {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+                setDateFrom(yesterdayStr);
+                setDateTo(yesterdayStr);
+            }, []);
+
+            useEffect(() => {
+                if (dateFrom && dateTo) {
+                    loadData();
+                }
+            }, [dateFrom, dateTo]);
+
+            async function loadData() {
+                setLoading(true);
+                setError('');
+
+                try {
+                    const response = await fetch(
+                        `${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`,
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Ошибка загрузки данных');
+                    }
+
+                    const data = await response.json();
+                    setConversions(data.conversions || []);
+                    setOffers(data.offers || []);
+
+                    // Расчет метрик
+                    calculateMetrics(data.conversions || []);
+                    setLoading(false);
+                } catch (err) {
+                    setError(err.message);
+                    setLoading(false);
+                }
+            }
+
+            function calculateMetrics(convData) {
+                const validGoalValues = ['1', '2', '5', '10'];
+                const validFiltered = convData.filter(c => 
+                    validGoalValues.includes(String(c.goal_value)) && c.status === 'confirmed'
+                );
+
+                const op = validFiltered.reduce((sum, c) => sum + (parseFloat(c.earnings) || 0), 0);
+                const orb = validFiltered.reduce((sum, c) => sum + (parseFloat(c.revenue) || 0), 0);
+                const conversionsCount = validFiltered.filter(c => c.revenue && parseFloat(c.revenue) !== 0).length;
+
+                const activeOffersCount = Object.values(
+                    validFiltered.reduce((acc, c) => {
+                        const offerId = c.offer_id;
+                        if (!acc[offerId]) acc[offerId] = 0;
+                        acc[offerId] += parseFloat(c.earnings) || 0;
+                        return acc;
+                    }, {})
+                ).filter(v => v >= 5000).length;
+
+                const activePartners = Object.values(
+                    validFiltered.reduce((acc, c) => {
+                        const partnerId = c.partner_id;
+                        if (!acc[partnerId]) acc[partnerId] = 0;
+                        acc[partnerId] += parseFloat(c.earnings) || 0;
+                        return acc;
+                    }, {})
+                ).filter(v => v >= 5000).length;
+
+                const orders = convData
+                    .filter(c => String(c.goal_value) === '4')
+                    .reduce((sum, c) => sum + (parseFloat(c.sum) || 0), 0);
+
+                const income = convData
+                    .filter(c => validGoalValues.includes(String(c.goal_value)))
+                    .reduce((sum, c) => sum + (parseFloat(c.sum) || 0), 0);
+
+                const romi = orb > 0 ? (income / orb * 100) : 0;
+
+                setMetrics({
+                    op: op.toFixed(2),
+                    orb: orb.toFixed(2),
+                    conversionsCount,
+                    activeOffersCount,
+                    activePartners,
+                    orders: orders.toFixed(2),
+                    income: income.toFixed(2),
+                    romi: romi.toFixed(2)
                 });
             }
-            
-            if (dateTo) {
-                filtered = filtered.filter(d => {
-                    const date = new Date(d.created_at);
-                    return date <= new Date(dateTo);
-                });
+
+            const getFilteredConversions = () => {
+                let filtered = conversions;
+
+                if (selectedAdvertisers.length > 0) {
+                    filtered = filtered.filter(c => selectedAdvertisers.includes(c.advertiser_title));
+                }
+
+                if (selectedOffers.length > 0) {
+                    filtered = filtered.filter(c => selectedOffers.includes(String(c.offer_id)));
+                }
+
+                return filtered;
+            };
+
+            const filtered = getFilteredConversions();
+            const uniqueAdvertisers = [...new Set(conversions.map(c => c.advertiser_title).filter(Boolean))];
+            const uniqueOffers = [...new Set(conversions.map(c => String(c.offer_id)).filter(Boolean))].sort();
+
+            const daysDiff = dateFrom && dateTo ? 
+                Math.max(1, Math.ceil((new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24))) : 1;
+
+            // Таблица по офферам
+            const offerStats = {};
+            filtered.forEach(c => {
+                const offerId = c.offer_id;
+                if (!offerStats[offerId]) {
+                    offerStats[offerId] = { op: 0, count: 0 };
+                }
+                offerStats[offerId].op += parseFloat(c.earnings) || 0;
+                offerStats[offerId].count += 1;
+            });
+
+            let offerTableData = Object.entries(offerStats).map(([offerId, stats]) => ({
+                offerId,
+                op: stats.op,
+                opPerDay: stats.op / daysDiff,
+                count: stats.count
+            }));
+
+            offerTableData.sort((a, b) => {
+                if (sortField1 === 'offerId') {
+                    return sortDirection1 === 'asc' ? a.offerId - b.offerId : b.offerId - a.offerId;
+                }
+                const valA = a[sortField1];
+                const valB = b[sortField1];
+                return sortDirection1 === 'asc' ? valA - valB : valB - valA;
+            });
+
+            if (loading) {
+                return <div className="text-center p-8 text-lg">⏳ Загрузка данных...</div>;
             }
-            
-            if (offerId) {
-                filtered = filtered.filter(d => d.offer_id == offerId);
+
+            if (error) {
+                return (
+                    <div className="bg-red-50 border border-red-300 rounded p-6 text-center">
+                        <div className="text-red-600 font-semibold mb-2">❌ {error}</div>
+                        <div className="text-sm text-gray-600">Проверьте подключение к API</div>
+                    </div>
+                );
             }
-            
-            if (partnerId) {
-                filtered = filtered.filter(d => d.partner_id == partnerId);
-            }
-            
-            updateMetrics(filtered);
-            updateTable(filtered);
+
+            return (
+                <div>
+                    <h2 className="text-2xl font-bold mb-6">Dashboard 2 - Аналитика</h2>
+
+                    {metrics && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">ОП</div>
+                                <div className="text-2xl font-bold">{metrics.op}</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">ОРБ</div>
+                                <div className="text-2xl font-bold">{metrics.orb}</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">Конверсии</div>
+                                <div className="text-2xl font-bold">{metrics.conversionsCount}</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">ROMI</div>
+                                <div className="text-2xl font-bold">{metrics.romi}%</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-pink-500 to-pink-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">Активные офферы</div>
+                                <div className="text-2xl font-bold">{metrics.activeOffersCount}</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">Активные партнёры</div>
+                                <div className="text-2xl font-bold">{metrics.activePartners}</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">Заказы</div>
+                                <div className="text-2xl font-bold">{metrics.orders}</div>
+                            </div>
+                            <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-4 rounded-lg shadow">
+                                <div className="text-sm opacity-90">Доход</div>
+                                <div className="text-2xl font-bold">{metrics.income}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-white rounded-lg shadow p-4 mb-6">
+                        <h3 className="font-semibold mb-3">Фильтры</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                                <label className="block text-sm mb-1">Рекламодатель ({uniqueAdvertisers.length})</label>
+                                <div className="filter-dropdown">
+                                    <button className="filter-button">
+                                        {selectedAdvertisers.length === 0 ? 'Все' : `Выбрано: ${selectedAdvertisers.length}`}
+                                    </button>
+                                    <div className="filter-menu">
+                                        <div className="filter-item" onClick={() => setSelectedAdvertisers([])}>
+                                            <input type="checkbox" className="filter-checkbox" checked={selectedAdvertisers.length === 0} readOnly />
+                                            <span>Все</span>
+                                        </div>
+                                        {uniqueAdvertisers.map(a => (
+                                            <div key={a} className="filter-item" onClick={() => {
+                                                if (selectedAdvertisers.includes(a)) {
+                                                    setSelectedAdvertisers(selectedAdvertisers.filter(x => x !== a));
+                                                } else {
+                                                    setSelectedAdvertisers([...selectedAdvertisers, a]);
+                                                }
+                                            }}>
+                                                <input type="checkbox" className="filter-checkbox" checked={selectedAdvertisers.includes(a)} readOnly />
+                                                <span>{a}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1">Оффер ({uniqueOffers.length})</label>
+                                <div className="filter-dropdown">
+                                    <button className="filter-button">
+                                        {selectedOffers.length === 0 ? 'Все' : `Выбрано: ${selectedOffers.length}`}
+                                    </button>
+                                    <div className="filter-menu">
+                                        <div className="filter-item" onClick={() => setSelectedOffers([])}>
+                                            <input type="checkbox" className="filter-checkbox" checked={selectedOffers.length === 0} readOnly />
+                                            <span>Все</span>
+                                        </div>
+                                        {uniqueOffers.map(o => (
+                                            <div key={o} className="filter-item" onClick={() => {
+                                                if (selectedOffers.includes(o)) {
+                                                    setSelectedOffers(selectedOffers.filter(x => x !== o));
+                                                } else {
+                                                    setSelectedOffers([...selectedOffers, o]);
+                                                }
+                                            }}>
+                                                <input type="checkbox" className="filter-checkbox" checked={selectedOffers.includes(o)} readOnly />
+                                                <span>{o}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1">Дата от</label>
+                                <input
+                                    type="date"
+                                    className="w-full border rounded p-2"
+                                    value={dateFrom}
+                                    onChange={(e) => setDateFrom(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1">Дата до</label>
+                                <input
+                                    type="date"
+                                    className="w-full border rounded p-2"
+                                    value={dateTo}
+                                    onChange={(e) => setDateTo(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-4 mb-6">
+                        <h3 className="font-semibold mb-3">Статистика по офферам</h3>
+                        <div className="text-sm text-gray-600 mb-2">Период: {daysDiff} {daysDiff === 1 ? 'день' : daysDiff < 5 ? 'дня' : 'дней'}</div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="text-left py-2 px-3 sortable-header" onClick={() => {
+                                            if (sortField1 === 'offerId') {
+                                                setSortDirection1(sortDirection1 === 'asc' ? 'desc' : 'asc');
+                                            } else {
+                                                setSortField1('offerId');
+                                                setSortDirection1('asc');
+                                            }
+                                        }}>
+                                            Оффер ID {sortField1 === 'offerId' && (sortDirection1 === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th className="text-right py-2 px-3 sortable-header" onClick={() => {
+                                            if (sortField1 === 'op') {
+                                                setSortDirection1(sortDirection1 === 'asc' ? 'desc' : 'asc');
+                                            } else {
+                                                setSortField1('op');
+                                                setSortDirection1('desc');
+                                            }
+                                        }}>
+                                            ОП {sortField1 === 'op' && (sortDirection1 === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th className="text-right py-2 px-3 sortable-header" onClick={() => {
+                                            if (sortField1 === 'opPerDay') {
+                                                setSortDirection1(sortDirection1 === 'asc' ? 'desc' : 'asc');
+                                            } else {
+                                                setSortField1('opPerDay');
+                                                setSortDirection1('desc');
+                                            }
+                                        }}>
+                                            ОП в День {sortField1 === 'opPerDay' && (sortDirection1 === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th className="text-right py-2 px-3">Конверсии</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {offerTableData.map(row => (
+                                        <tr key={row.offerId} className="border-b hover:bg-gray-50">
+                                            <td className="py-2 px-3">{row.offerId}</td>
+                                            <td className="text-right py-2 px-3">{row.op.toFixed(2)}</td>
+                                            <td className="text-right py-2 px-3">{row.opPerDay.toFixed(2)}</td>
+                                            <td className="text-right py-2 px-3">{row.count}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-4">
+                        <h3 className="font-semibold mb-3">Статистика загрузки</h3>
+                        <div className="text-sm text-gray-600 space-y-1">
+                            <div>✅ Загружено конверсий: <strong>{conversions.length}</strong></div>
+                            <div>✅ Загружено офферов: <strong>{offers.length}</strong></div>
+                            <div>📊 Отфильтровано конверсий: <strong>{filtered.length}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
-        // Сброс фильтров
-        function resetFilters() {
-            document.getElementById('filter-date-from').value = '';
-            document.getElementById('filter-date-to').value = '';
-            document.getElementById('filter-offer').value = '';
-            document.getElementById('filter-partner').value = '';
-            
-            updateMetrics(allData);
-            updateTable(allData);
+        function Dashboard1({ token }) {
+            return (
+                <div className="bg-white rounded-lg shadow p-4">
+                    <h2 className="text-2xl font-bold mb-4">Dashboard 1 - Управление лимитами</h2>
+                    <p className="text-gray-600">Функционал управления лимитами будет добавлен позже</p>
+                </div>
+            );
         }
 
-        // Загрузка при старте
-        window.addEventListener('DOMContentLoaded', loadData);
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
-
