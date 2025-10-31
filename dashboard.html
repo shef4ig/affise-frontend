@@ -386,14 +386,28 @@
             localStorage.removeItem('username');
             window.location.href = 'login.html';
         }
+// Получить дату 30 дней назад
+function getDefaultDateFrom() {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+}
 
+// Получить сегодняшнюю дату
+function getDefaultDateTo() {
+    return new Date().toISOString().split('T')[0];
+}
         // Загрузка данных
         async function loadData() {
             const token = checkAuth();
             if (!token) return;
 
             try {
-                const response = await fetch(`${API_URL}/api/conversions`, {
+               // Получаем даты из фильтров или используем последние 30 дней
+const dateFrom = document.getElementById('dateFrom')?.value || getDefaultDateFrom();
+const dateTo = document.getElementById('dateTo')?.value || getDefaultDateTo();
+
+const response = await fetch(`${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -582,3 +596,4 @@
     </script>
 </body>
 </html>
+
