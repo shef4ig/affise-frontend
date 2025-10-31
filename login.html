@@ -113,7 +113,7 @@
 
                 if (!response.ok) throw new Error('Неверное имя пользователя или пароль');
                 const data = await response.json();
-                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('token', data.access_token);
                 localStorage.setItem('username', data.username);
                 localStorage.setItem('is_admin', data.is_admin);
                 window.location.href = 'dashboard.html';
