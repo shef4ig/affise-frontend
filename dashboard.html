@@ -4,439 +4,619 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Affise Analytics Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
-<body class="bg-gray-100">
+<body>
     <div id="root"></div>
 
-    <script>
-    // ====== КОНФИГУРАЦИЯ ======
-    const API_URL = 'https://affise-backend-production.up.railway.app';
-    
-    // ====== СОСТОЯНИЕ ======
-    let state = {
-        token: localStorage.getItem('token'),
-        username: localStorage.getItem('username'),
-        isLoggedIn: !!localStorage.getItem('token'),
-        currentPage: 'login',
-        dateFrom: getYesterdayDate(),
-        dateTo: getYesterdayDate(),
-        dashboardData: null,
-        loading: false,
-        error: null
-    };
+    <script type="text/babel">
+    const { useState, useEffect } = React;
 
-    // ====== УТИЛИТЫ ======
-    function getYesterdayDate() {
-        const date = new Date();
-        date.setDate(date.getDate() - 1);
-        return date.toISOString().split('T')[0];
-    }
+    // API конфигурация
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-    function getTodayDate() {
-        return new Date().toISOString().split('T')[0];
-    }
+    function App() {
+        const [activeTab, setActiveTab] = useState('analytics');
+        const [token, setToken] = useState(localStorage.getItem('token'));
+        const [user, setUser] = useState(null);
+        const [showLogin, setShowLogin] = useState(!token);
 
-    function formatCurrency(value) {
-        return new Intl.NumberFormat('ru-RU', {
-            style: 'currency',
-            currency: 'RUB',
-            minimumFractionDigits: 0
-        }).format(value);
-    }
-
-    function formatNumber(value) {
-        return new Intl.NumberFormat('ru-RU').format(Math.round(value));
-    }
-
-    // ====== API ЗАПРОСЫ ======
-    async function login(username, password) {
-        try {
-            state.loading = true;
-            state.error = null;
-
-            const formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
-
-            const response = await fetch(`${API_URL}/token`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error('Неверные учетные данные');
+        useEffect(() => {
+            if (token) {
+                fetchCurrentUser();
             }
+        }, [token]);
 
-            const data = await response.json();
-            
-            localStorage.setItem('token', data.access_token);
-            localStorage.setItem('username', username);
-            
-            state.token = data.access_token;
-            state.username = username;
-            state.isLoggedIn = true;
-            state.currentPage = 'dashboard';
-            
-            render();
-        } catch (error) {
-            state.error = error.message;
-            render();
-        } finally {
-            state.loading = false;
-        }
-    }
-
-    async function loadDashboardData(dateFrom, dateTo) {
-        try {
-            state.loading = true;
-            state.error = null;
-
-            const response = await fetch(
-                `${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`,
-                {
+        const fetchCurrentUser = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/me`, {
                     headers: {
-                        'Authorization': `Bearer ${state.token}`,
-                        'Content-Type': 'application/json'
+                        'Authorization': `Bearer ${token}`
                     }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setUser(data);
+                    setShowLogin(false);
+                } else {
+                    setToken(null);
+                    localStorage.removeItem('token');
+                    setShowLogin(true);
                 }
-            );
-
-            if (response.status === 401) {
-                throw new Error('Сессия истекла. Пожалуйста, авторизуйтесь заново.');
+            } catch (error) {
+                console.error('Error fetching user:', error);
+                setShowLogin(true);
             }
+        };
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Ошибка загрузки данных');
-            }
+        const handleLogout = () => {
+            setToken(null);
+            setUser(null);
+            localStorage.removeItem('token');
+            setShowLogin(true);
+        };
 
-            const data = await response.json();
-            state.dashboardData = data;
-            state.dateFrom = dateFrom;
-            state.dateTo = dateTo;
-            
-            render();
-        } catch (error) {
-            state.error = error.message;
-            render();
-        } finally {
-            state.loading = false;
-        }
-    }
-
-    function logout() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        state.token = null;
-        state.username = null;
-        state.isLoggedIn = false;
-        state.currentPage = 'login';
-        state.dashboardData = null;
-        render();
-    }
-
-    // ====== КОМПОНЕНТЫ ======
-    function LoginPage() {
-        return `
-            <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600">
-                <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-                    <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">
-                        📊 Affise Analytics
-                    </h1>
-                    
-                    ${state.error ? `
-                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                            ❌ ${state.error}
-                        </div>
-                    ` : ''}
-                    
-                    <form onsubmit="handleLogin(event)">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 font-semibold mb-2">Логин</label>
-                            <input 
-                                type="text" 
-                                id="username" 
-                                placeholder="admin"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
-                                required
-                            />
-                        </div>
-                        
-                        <div class="mb-6">
-                            <label class="block text-gray-700 font-semibold mb-2">Пароль</label>
-                            <input 
-                                type="password" 
-                                id="password" 
-                                placeholder="admin123"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
-                                required
-                            />
-                        </div>
-                        
-                        <button 
-                            type="submit"
-                            class="w-full bg-purple-600 text-white font-semibold py-2 rounded-lg hover:bg-purple-700 transition"
-                            ${state.loading ? 'disabled' : ''}
-                        >
-                            ${state.loading ? 'Загрузка...' : 'Войти'}
-                        </button>
-                    </form>
-                </div>
-            </div>
-        `;
-    }
-
-    function DashboardPage() {
-        if (!state.dashboardData) {
-            return `
-                <div class="min-h-screen flex items-center justify-center">
-                    <div class="text-center">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                        <p class="text-gray-600">Загрузка данных...</p>
-                    </div>
-                </div>
-            `;
+        if (showLogin) {
+            return <LoginForm onLogin={(newToken) => {
+                setToken(newToken);
+                localStorage.setItem('token', newToken);
+            }} />;
         }
 
-        const data = state.dashboardData;
-        const conversions = data.conversions || [];
-        
-        // Расчет метрик
-        const metrics = calculateMetrics(conversions);
-
-        return `
-            <div class="min-h-screen bg-gray-100">
-                <!-- HEADER -->
-                <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg">
-                    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        return (
+            <div>
+                <div style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                         <div>
-                            <h1 class="text-3xl font-bold">📊 Affise Analytics Dashboard</h1>
-                            <p class="text-purple-100 mt-1">Пользователь: <strong>${state.username}</strong></p>
+                            <h1 style={{fontSize: '24px', marginBottom: '5px'}}>📊 Affise Analytics Dashboard</h1>
+                            {user && <p style={{fontSize: '14px', opacity: 0.9}}>Пользователь: {user.username} ({user.role})</p>}
                         </div>
                         <button 
-                            onclick="handleLogout()"
-                            class="bg-red-500 hover:bg-red-600 px-6 py-2 rounded-lg font-semibold transition"
+                            onClick={handleLogout}
+                            style={{
+                                padding: '10px 20px',
+                                background: 'rgba(255,255,255,0.2)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }}
                         >
                             Выход
                         </button>
                     </div>
+                    <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+                        <button 
+                            style={{
+                                padding: '10px 20px',
+                                background: activeTab === 'analytics' ? 'white' : 'rgba(255,255,255,0.2)',
+                                color: activeTab === 'analytics' ? '#667eea' : 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontWeight: activeTab === 'analytics' ? '600' : 'normal'
+                            }}
+                            onClick={() => setActiveTab('analytics')}
+                        >
+                            Аналитика
+                        </button>
+                        <button 
+                            style={{
+                                padding: '10px 20px',
+                                background: activeTab === 'limits' ? 'white' : 'rgba(255,255,255,0.2)',
+                                color: activeTab === 'limits' ? '#667eea' : 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontWeight: activeTab === 'limits' ? '600' : 'normal'
+                            }}
+                            onClick={() => setActiveTab('limits')}
+                        >
+                            Управление лимитами
+                        </button>
+                    </div>
                 </div>
 
-                <!-- MAIN CONTENT -->
-                <div class="max-w-7xl mx-auto p-6">
-                    <!-- ФИЛЬТРЫ -->
-                    <div class="bg-white rounded-lg shadow p-6 mb-6">
-                        <h2 class="text-xl font-bold mb-4">Фильтры</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-sm font-semibold mb-2">Дата от</label>
-                                <input 
-                                    type="date" 
-                                    id="dateFrom"
-                                    value="${state.dateFrom}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-2">Дата до</label>
-                                <input 
-                                    type="date" 
-                                    id="dateTo"
-                                    value="${state.dateTo}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                />
-                            </div>
-                            <div class="flex items-end">
-                                <button 
-                                    onclick="handleLoadData()"
-                                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 rounded-lg transition"
-                                    ${state.loading ? 'disabled' : ''}
-                                >
-                                    ${state.loading ? 'Загрузка...' : 'Загрузить'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${state.error ? `
-                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-                            ❌ ${state.error}
-                        </div>
-                    ` : ''}
-
-                    <!-- МЕТРИКИ -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-gray-600 text-sm font-semibold mb-2">Общая прибыль (ОП)</h3>
-                            <p class="text-3xl font-bold text-green-600">${formatCurrency(metrics.totalEarnings)}</p>
-                            <p class="text-xs text-gray-500 mt-2">Сумма earnings</p>
-                        </div>
-
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-gray-600 text-sm font-semibold mb-2">Общий рекламный бюджет (ОРБ)</h3>
-                            <p class="text-3xl font-bold text-blue-600">${formatCurrency(metrics.totalRevenue)}</p>
-                            <p class="text-xs text-gray-500 mt-2">Сумма revenue</p>
-                        </div>
-
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-gray-600 text-sm font-semibold mb-2">Конверсии</h3>
-                            <p class="text-3xl font-bold text-orange-600">${formatNumber(metrics.conversions)}</p>
-                            <p class="text-xs text-gray-500 mt-2">Количество записей</p>
-                        </div>
-
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-gray-600 text-sm font-semibold mb-2">Активные офферы</h3>
-                            <p class="text-3xl font-bold text-indigo-600">${formatNumber(metrics.activeOffers)}</p>
-                            <p class="text-xs text-gray-500 mt-2">Earnings >= 5000</p>
-                        </div>
-
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-gray-600 text-sm font-semibold mb-2">Активные партнеры</h3>
-                            <p class="text-3xl font-bold text-pink-600">${formatNumber(metrics.activePartners)}</p>
-                            <p class="text-xs text-gray-500 mt-2">Earnings >= 5000</p>
-                        </div>
-
-                        <div class="bg-white rounded-lg shadow p-6">
-                            <h3 class="text-gray-600 text-sm font-semibold mb-2">ROMI</h3>
-                            <p class="text-3xl font-bold text-red-600">${metrics.romi.toFixed(2)}%</p>
-                            <p class="text-xs text-gray-500 mt-2">(Доход / ОРБ) * 100</p>
-                        </div>
-                    </div>
-
-                    <!-- ТАБЛИЦА КОНВЕРСИЙ -->
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-xl font-bold mb-4">Конверсии (${conversions.length})</h2>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
-                                <thead class="bg-gray-100 border-b">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left">ID</th>
-                                        <th class="px-4 py-2 text-left">Оффер</th>
-                                        <th class="px-4 py-2 text-left">Партнер</th>
-                                        <th class="px-4 py-2 text-left">Статус</th>
-                                        <th class="px-4 py-2 text-right">Revenue</th>
-                                        <th class="px-4 py-2 text-right">Earnings</th>
-                                        <th class="px-4 py-2 text-left">Дата</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${conversions.slice(0, 20).map(conv => `
-                                        <tr class="border-b hover:bg-gray-50">
-                                            <td class="px-4 py-2 text-xs text-gray-500">${conv.id}</td>
-                                            <td class="px-4 py-2">${conv.offer_title || 'N/A'}</td>
-                                            <td class="px-4 py-2">${conv.partner_id || 'N/A'}</td>
-                                            <td class="px-4 py-2">
-                                                <span class="px-2 py-1 rounded text-xs ${
-                                                    conv.status === 'confirmed' 
-                                                    ? 'bg-green-100 text-green-800' 
-                                                    : 'bg-yellow-100 text-yellow-800'
-                                                }">
-                                                    ${conv.status}
-                                                </span>
-                                            </td>
-                                            <td class="px-4 py-2 text-right">${formatCurrency(conv.revenue || 0)}</td>
-                                            <td class="px-4 py-2 text-right font-semibold">${formatCurrency(conv.earnings || 0)}</td>
-                                            <td class="px-4 py-2 text-xs text-gray-500">${new Date(conv.created_at).toLocaleDateString('ru-RU')}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                        ${conversions.length > 20 ? `
-                            <p class="text-center text-gray-500 text-sm mt-4">Показано 20 из ${conversions.length} записей</p>
-                        ` : ''}
-                    </div>
+                <div style={{maxWidth: '1400px', margin: '0 auto', padding: '20px'}}>
+                    {activeTab === 'analytics' && <Dashboard2 token={token} />}
+                    {activeTab === 'limits' && <Dashboard1 />}
                 </div>
             </div>
-        `;
+        );
     }
 
-    function calculateMetrics(conversions) {
-        // Фильтруем по goal_value в [1, 2, 5, 10] и status = 'confirmed'
-        const filtered = conversions.filter(c => 
-            [1, 2, 5, 10].includes(c.goal_value) && c.status === 'confirmed'
+    function LoginForm({ onLogin }) {
+        const [username, setUsername] = useState('admin');
+        const [password, setPassword] = useState('admin');
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState('');
+
+        const handleLogin = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            setError('');
+
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    onLogin(data.access_token);
+                } else {
+                    setError('Неверные учетные данные');
+                }
+            } catch (err) {
+                setError(`Ошибка подключения: ${err.message}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            }}>
+                <div style={{
+                    background: 'white',
+                    padding: '40px',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                    width: '100%',
+                    maxWidth: '400px'
+                }}>
+                    <h1 style={{fontSize: '28px', marginBottom: '30px', textAlign: 'center', color: '#333'}}>
+                        Affise Analytics
+                    </h1>
+                    <form onSubmit={handleLogin}>
+                        <div style={{marginBottom: '20px'}}>
+                            <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333'}}>
+                                Пользователь
+                            </label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '5px',
+                                    fontSize: '14px',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+                        <div style={{marginBottom: '20px'}}>
+                            <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333'}}>
+                                Пароль
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '5px',
+                                    fontSize: '14px',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+                        {error && (
+                            <div style={{
+                                background: '#fee',
+                                color: '#c33',
+                                padding: '12px',
+                                borderRadius: '5px',
+                                marginBottom: '20px',
+                                fontSize: '14px'
+                            }}>
+                                {error}
+                            </div>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            style={{
+                                width: '100%',
+                                padding: '12px',
+                                background: loading ? '#ccc' : '#667eea',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                cursor: loading ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            {loading ? 'Загрузка...' : 'Вход'}
+                        </button>
+                    </form>
+                    <p style={{marginTop: '20px', textAlign: 'center', color: '#666', fontSize: '14px'}}>
+                        Тестовые учетные данные: admin / admin
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    function Dashboard2({ token }) {
+        const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState('');
+        const [data, setData] = useState(null);
+        const [activeTab, setActiveTab] = useState('metrics');
+
+        const handleLoadData = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    const result = await response.json();
+                    setData(result);
+                } else {
+                    setError('Ошибка загрузки данных');
+                }
+            } catch (err) {
+                setError(`Ошибка подключения: ${err.message}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const formatNumber = (num) => {
+            if (num === null || num === undefined) return '0';
+            return parseFloat(num).toLocaleString('ru-RU', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        };
+
+        const MetricCard = ({ title, value, unit = '' }) => (
+            <div style={{
+                background: 'white',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                padding: '20px',
+                textAlign: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+                <div style={{fontSize: '14px', color: '#666', marginBottom: '10px'}}>
+                    {title}
+                </div>
+                <div style={{fontSize: '28px', fontWeight: 'bold', color: '#667eea'}}>
+                    {formatNumber(value)}{unit}
+                </div>
+            </div>
         );
 
-        // ОП (Общая прибыль) - сумма earnings
-        const totalEarnings = filtered.reduce((sum, c) => sum + (c.earnings || 0), 0);
+        return (
+            <div style={{minHeight: '100vh', background: '#f5f5f5'}}>
+                {/* Форма выбора дат */}
+                <div style={{background: 'white', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+                    <h2 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
+                        Выбор периода
+                    </h2>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', alignItems: 'flex-end'}}>
+                        <div>
+                            <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333', fontSize: '14px'}}>
+                                Дата начала
+                            </label>
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '5px',
+                                    fontSize: '14px',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+                        <div>
+                            <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333', fontSize: '14px'}}>
+                                Дата окончания
+                            </label>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '5px',
+                                    fontSize: '14px',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+                        <button
+                            onClick={handleLoadData}
+                            disabled={loading}
+                            style={{
+                                padding: '10px 30px',
+                                background: loading ? '#ccc' : '#667eea',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                fontWeight: '600',
+                                fontSize: '14px'
+                            }}
+                        >
+                            {loading ? '⏳ Загрузка...' : '📊 Загрузить данные'}
+                        </button>
+                    </div>
+                </div>
 
-        // ОРБ (Общий рекламный бюджет) - сумма revenue
-        const totalRevenue = filtered.reduce((sum, c) => sum + (c.revenue || 0), 0);
+                {error && (
+                    <div style={{
+                        background: '#fee',
+                        color: '#c33',
+                        padding: '15px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        border: '1px solid #fcc'
+                    }}>
+                        ❌ {error}
+                    </div>
+                )}
 
-        // Конверсии - количество записей где revenue != 0
-        const conversionsCount = filtered.filter(c => c.revenue !== 0).length;
+                {data && (
+                    <>
+                        {/* Метрики */}
+                        <div style={{background: 'white', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+                            <h2 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
+                                📈 Ключевые метрики
+                            </h2>
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px'}}>
+                                <MetricCard title="ОП (Общая прибыль)" value={data.metrics.op} />
+                                <MetricCard title="ОРБ (Рекламный бюджет)" value={data.metrics.orb} />
+                                <MetricCard title="ROMI" value={data.metrics.romi} unit="%" />
+                                <MetricCard title="Конверсии" value={data.metrics.conversions} />
+                                <MetricCard title="Активные офферы" value={data.metrics.active_offers} />
+                                <MetricCard title="Активные партнёры" value={data.metrics.active_partners} />
+                                <MetricCard title="Заказы" value={data.metrics.orders} />
+                                <MetricCard title="Доход" value={data.metrics.income} />
+                            </div>
+                        </div>
 
-        // Активные офферы - группировка по offer_id, условие: сумма earnings >= 5000
-        const offersByEarnings = {};
-        filtered.forEach(c => {
-            if (!offersByEarnings[c.offer_id]) {
-                offersByEarnings[c.offer_id] = 0;
-            }
-            offersByEarnings[c.offer_id] += c.earnings || 0;
-        });
-        const activeOffers = Object.values(offersByEarnings).filter(e => e >= 5000).length;
+                        {/* Табы для таблиц */}
+                        <div style={{background: 'white', borderRadius: '8px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+                            <div style={{display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #e0e0e0', paddingBottom: '10px'}}>
+                                <button
+                                    onClick={() => setActiveTab('conversions')}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: activeTab === 'conversions' ? '#667eea' : '#f0f0f0',
+                                        color: activeTab === 'conversions' ? 'white' : '#333',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        fontWeight: activeTab === 'conversions' ? '600' : 'normal'
+                                    }}
+                                >
+                                    Конверсии ({data.total_conversions})
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('offers')}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: activeTab === 'offers' ? '#667eea' : '#f0f0f0',
+                                        color: activeTab === 'offers' ? 'white' : '#333',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        fontWeight: activeTab === 'offers' ? '600' : 'normal'
+                                    }}
+                                >
+                                    Офферы ({data.total_offers})
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('limits')}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: activeTab === 'limits' ? '#667eea' : '#f0f0f0',
+                                        color: activeTab === 'limits' ? 'white' : '#333',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        fontWeight: activeTab === 'limits' ? '600' : 'normal'
+                                    }}
+                                >
+                                    Лимиты ({data.total_limits})
+                                </button>
+                            </div>
 
-        // Активные партнеры - группировка по partner_id, условие: сумма earnings >= 5000
-        const partnersByEarnings = {};
-        filtered.forEach(c => {
-            if (!partnersByEarnings[c.partner_id]) {
-                partnersByEarnings[c.partner_id] = 0;
-            }
-            partnersByEarnings[c.partner_id] += c.earnings || 0;
-        });
-        const activePartners = Object.values(partnersByEarnings).filter(e => e >= 5000).length;
+                            {/* Таблица конверсий */}
+                            {activeTab === 'conversions' && (
+                                <div style={{overflowX: 'auto'}}>
+                                    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+                                        <thead>
+                                            <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>ID</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Partner</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Status</th>
+                                                <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Revenue</th>
+                                                <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Earnings</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Created</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.conversions.slice(0, 100).map((conv, idx) => (
+                                                <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+                                                    <td style={{padding: '10px'}}>{conv.id}</td>
+                                                    <td style={{padding: '10px'}}>{conv.offer_title}</td>
+                                                    <td style={{padding: '10px'}}>{conv.partner_id}</td>
+                                                    <td style={{padding: '10px'}}>{conv.goal_value}</td>
+                                                    <td style={{padding: '10px'}}>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '3px',
+                                                            background: conv.status === 'confirmed' ? '#d4edda' : '#fff3cd',
+                                                            color: conv.status === 'confirmed' ? '#155724' : '#856404',
+                                                            fontSize: '12px'
+                                                        }}>
+                                                            {conv.status}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{padding: '10px', textAlign: 'right'}}>{formatNumber(conv.revenue)}</td>
+                                                    <td style={{padding: '10px', textAlign: 'right', fontWeight: '600', color: '#667eea'}}>{formatNumber(conv.earnings)}</td>
+                                                    <td style={{padding: '10px', fontSize: '12px'}}>{conv.created_at ? new Date(conv.created_at).toLocaleDateString('ru-RU') : '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {data.conversions.length > 100 && (
+                                        <p style={{marginTop: '10px', color: '#666', fontSize: '12px'}}>
+                                            Показано 100 из {data.conversions.length} записей
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
-        // ROMI = (Доход / ОРБ) * 100
-        const romi = totalRevenue > 0 ? (totalEarnings / totalRevenue) * 100 : 0;
+                            {/* Таблица офферов */}
+                            {activeTab === 'offers' && (
+                                <div style={{overflowX: 'auto'}}>
+                                    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+                                        <thead>
+                                            <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Title</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Status</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Advertiser</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Privacy</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.offers.map((offer, idx) => (
+                                                <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+                                                    <td style={{padding: '10px'}}>{offer.offer_id}</td>
+                                                    <td style={{padding: '10px'}}>{offer.title}</td>
+                                                    <td style={{padding: '10px'}}>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '3px',
+                                                            background: offer.status === 'active' ? '#d4edda' : '#f8d7da',
+                                                            color: offer.status === 'active' ? '#155724' : '#721c24',
+                                                            fontSize: '12px'
+                                                        }}>
+                                                            {offer.status}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{padding: '10px'}}>{offer.advertiser}</td>
+                                                    <td style={{padding: '10px'}}>{offer.privacy}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
-        return {
-            totalEarnings,
-            totalRevenue,
-            conversions: conversionsCount,
-            activeOffers,
-            activePartners,
-            romi
-        };
+                            {/* Таблица лимитов */}
+                            {activeTab === 'limits' && (
+                                <div style={{overflowX: 'auto'}}>
+                                    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+                                        <thead>
+                                            <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal ID</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal Name</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Affiliate ID</th>
+                                                <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Current Value</th>
+                                                <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Limit</th>
+                                                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Type</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.limits.slice(0, 100).map((limit, idx) => (
+                                                <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+                                                    <td style={{padding: '10px'}}>{limit.offer_id}</td>
+                                                    <td style={{padding: '10px'}}>{limit.goal_id}</td>
+                                                    <td style={{padding: '10px'}}>{limit.goal_name}</td>
+                                                    <td style={{padding: '10px'}}>{limit.affiliate_id}</td>
+                                                    <td style={{padding: '10px', textAlign: 'right'}}>{formatNumber(limit.current_value)}</td>
+                                                    <td style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>{formatNumber(limit.value)}</td>
+                                                    <td style={{padding: '10px'}}>{limit.type}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {data.limits.length > 100 && (
+                                        <p style={{marginTop: '10px', color: '#666', fontSize: '12px'}}>
+                                            Показано 100 из {data.limits.length} записей
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {!data && !loading && (
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '8px',
+                        padding: '40px',
+                        textAlign: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                        <p style={{color: '#666', fontSize: '16px'}}>
+                            👆 Выберите период и нажмите "Загрузить данные"
+                        </p>
+                    </div>
+                )}
+            </div>
+        );
     }
 
-    // ====== ОБРАБОТЧИКИ СОБЫТИЙ ======
-    function handleLogin(event) {
-        event.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        login(username, password);
+    function Dashboard1() {
+        return (
+            <div style={{background: 'white', borderRadius: '8px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+                <h2 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '10px', color: '#333'}}>
+                    Управление лимитами
+                </h2>
+                <p style={{color: '#666'}}>
+                    Функция управления лимитами будет реализована в следующей версии
+                </p>
+            </div>
+        );
     }
 
-    function handleLoadData() {
-        const dateFrom = document.getElementById('dateFrom').value;
-        const dateTo = document.getElementById('dateTo').value;
-        loadDashboardData(dateFrom, dateTo);
-    }
-
-    function handleLogout() {
-        logout();
-    }
-
-    // ====== РЕНДЕРИНГ ======
-    function render() {
-        const root = document.getElementById('root');
-        
-        if (!state.isLoggedIn) {
-            root.innerHTML = LoginPage();
-        } else {
-            root.innerHTML = DashboardPage();
-        }
-    }
-
-    // ====== ИНИЦИАЛИЗАЦИЯ ======
-    if (state.isLoggedIn) {
-        state.currentPage = 'dashboard';
-        loadDashboardData(state.dateFrom, state.dateTo);
-    } else {
-        render();
-    }
+    ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
