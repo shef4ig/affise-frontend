@@ -260,28 +260,76 @@
     function Dashboard2({ token }) {
     const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+    const [advertiserId, setAdvertiserId] = useState('');
+    const [offerId, setOfferId] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [data, setData] = useState(null);
     const [activeTab, setActiveTab] = useState('metrics');
+    const [advertisers, setAdvertisers] = useState([]);
+    const [offers, setOffers] = useState([]);
+    const [loadingFilters, setLoadingFilters] = useState(false);
 
-    // Загрузка данных при изменении дат
+    // Загрузка фильтров при изменении дат
     useEffect(() => {
-    handleLoadData();
+    loadFilters();
     }, [dateFrom, dateTo]);
 
-    const handleLoadData = async () => {
-    setLoading(true);
-    setError('');
+    // Загрузка данных при изменении любого фильтра
+    useEffect(() => {
+    handleLoadData();
+    }, [dateFrom, dateTo, advertiserId, offerId]);
+
+    const loadFilters = async () => {
+    setLoadingFilters(true);
     try {
-    const response = await fetch(
-    `${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`,
+    // Загружаем рекламодателей
+    const advResponse = await fetch(
+    `${API_URL}/api/filters/advertisers?date_from=${dateFrom}&date_to=${dateTo}`,
     {
     headers: {
     'Authorization': `Bearer ${token}`
     }
     }
     );
+    if (advResponse.ok) {
+    const advData = await advResponse.json();
+    setAdvertisers(advData.advertisers || []);
+    }
+
+    // Загружаем офферы
+    const offResponse = await fetch(
+    `${API_URL}/api/filters/offers?date_from=${dateFrom}&date_to=${dateTo}${advertiserId ? `&advertiser_id=${advertiserId}` : ''}`,
+    {
+    headers: {
+    'Authorization': `Bearer ${token}`
+    }
+    }
+    );
+    if (offResponse.ok) {
+    const offData = await offResponse.json();
+    setOffers(offData.offers || []);
+    }
+    } catch (err) {
+    console.error('Error loading filters:', err);
+    } finally {
+    setLoadingFilters(false);
+    }
+    };
+
+    const handleLoadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+    let url = `${API_URL}/api/dashboard-data?date_from=${dateFrom}&date_to=${dateTo}`;
+    if (advertiserId) url += `&advertiser_id=${advertiserId}`;
+    if (offerId) url += `&offer_id=${offerId}`;
+
+    const response = await fetch(url, {
+    headers: {
+    'Authorization': `Bearer ${token}`
+    }
+    });
 
     if (response.ok) {
     const result = await response.json();
@@ -311,12 +359,23 @@
     borderRadius: '8px',
     padding: '20px',
     textAlign: 'center',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-    <div style={{fontSize: '14px', color: '#666', marginBottom: '10px'}}>
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    cursor: 'pointer'
+    }}
+    onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-2px)';
+    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    }}
+    onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+    }}
+    >
+    <div style={{fontSize: '13px', color: '#999', marginBottom: '8px', fontWeight: '500'}}>
     {title}
     </div>
-    <div style={{fontSize: '28px', fontWeight: 'bold', color: color}}>
+    <div style={{fontSize: '32px', fontWeight: 'bold', color: color}}>
     {formatNumber(value)}{unit}
     </div>
     </div>
@@ -326,12 +385,12 @@
     <div style={{minHeight: '100vh', background: '#f5f5f5'}}>
     {/* Фильтры */}
     <div style={{background: 'white', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
-    <h2 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
+    <h2 style={{fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
     📅 Фильтры
     </h2>
-    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', alignItems: 'flex-end'}}>
+    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', alignItems: 'flex-end'}}>
     <div>
-    <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333', fontSize: '14px'}}>
+    <label style={{display: 'block', marginBottom: '6px', fontWeight: '600', color: '#333', fontSize: '13px'}}>
     Дата начала
     </label>
     <input
@@ -343,13 +402,13 @@
     padding: '10px',
     border: '1px solid #ddd',
     borderRadius: '5px',
-    fontSize: '14px',
+    fontSize: '13px',
     boxSizing: 'border-box'
     }}
     />
     </div>
     <div>
-    <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333', fontSize: '14px'}}>
+    <label style={{display: 'block', marginBottom: '6px', fontWeight: '600', color: '#333', fontSize: '13px'}}>
     Дата окончания
     </label>
     <input
@@ -361,14 +420,61 @@
     padding: '10px',
     border: '1px solid #ddd',
     borderRadius: '5px',
-    fontSize: '14px',
+    fontSize: '13px',
     boxSizing: 'border-box'
     }}
     />
     </div>
+    <div>
+    <label style={{display: 'block', marginBottom: '6px', fontWeight: '600', color: '#333', fontSize: '13px'}}>
+    Рекламодатель
+    </label>
+    <select
+    value={advertiserId}
+    onChange={(e) => {
+    setAdvertiserId(e.target.value);
+    setOfferId('');
+    }}
+    style={{
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '5px',
+    fontSize: '13px',
+    boxSizing: 'border-box'
+    }}
+    >
+    <option value="">Все</option>
+    {advertisers.map((adv) => (
+    <option key={adv.id} value={adv.id}>{adv.name}</option>
+    ))}
+    </select>
+    </div>
+    <div>
+    <label style={{display: 'block', marginBottom: '6px', fontWeight: '600', color: '#333', fontSize: '13px'}}>
+    Оффер
+    </label>
+    <select
+    value={offerId}
+    onChange={(e) => setOfferId(e.target.value)}
+    style={{
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '5px',
+    fontSize: '13px',
+    boxSizing: 'border-box'
+    }}
+    >
+    <option value="">Все</option>
+    {offers.map((off) => (
+    <option key={off.id} value={off.id}>{off.title}</option>
+    ))}
+    </select>
+    </div>
     {loading && (
-    <div style={{color: '#667eea', fontWeight: '600', fontSize: '14px'}}>
-    ⏳ Загрузка данных...
+    <div style={{color: '#667eea', fontWeight: '600', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+    <span style={{display: 'inline-block', animation: 'spin 1s linear infinite'}}>⏳</span> Загрузка...
     </div>
     )}
     </div>
@@ -391,10 +497,10 @@
     <>
     {/* Метрики */}
     <div style={{background: 'white', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
-    <h2 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
+    <h2 style={{fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
     📈 Ключевые метрики
     </h2>
-    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px'}}>
+    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '15px'}}>
     <MetricCard title="ОП (Общая прибыль)" value={data.metrics.op} color="#3b82f6" />
     <MetricCard title="ОРБ (Рекламный бюджет)" value={data.metrics.orb} color="#10b981" />
     <MetricCard title="Конверсии" value={data.metrics.conversions} color="#a855f7" />
@@ -418,7 +524,8 @@
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',
-    fontWeight: activeTab === 'metrics' ? '600' : 'normal'
+    fontWeight: activeTab === 'metrics' ? '600' : 'normal',
+    fontSize: '13px'
     }}
     >
     📊 Метрики
@@ -432,7 +539,8 @@
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',
-    fontWeight: activeTab === 'conversions' ? '600' : 'normal'
+    fontWeight: activeTab === 'conversions' ? '600' : 'normal',
+    fontSize: '13px'
     }}
     >
     Конверсии ({data.total_conversions})
@@ -446,7 +554,8 @@
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',
-    fontWeight: activeTab === 'offers' ? '600' : 'normal'
+    fontWeight: activeTab === 'offers' ? '600' : 'normal',
+    fontSize: '13px'
     }}
     >
     Офферы ({data.total_offers})
@@ -460,7 +569,8 @@
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',
-    fontWeight: activeTab === 'limits' ? '600' : 'normal'
+    fontWeight: activeTab === 'limits' ? '600' : 'normal',
+    fontSize: '13px'
     }}
     >
     Лимиты ({data.total_limits})
@@ -470,46 +580,46 @@
     {/* Таблица конверсий */}
     {activeTab === 'conversions' && (
     <div style={{overflowX: 'auto'}}>
-    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
     <thead>
     <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>ID</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Partner</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Status</th>
-    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Revenue</th>
-    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Earnings</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Created</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>ID</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Offer</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Partner</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Goal</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Status</th>
+    <th style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>Revenue</th>
+    <th style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>Earnings</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Created</th>
     </tr>
     </thead>
     <tbody>
     {data.conversions.slice(0, 100).map((conv, idx) => (
     <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-    <td style={{padding: '10px'}}>{conv.id}</td>
-    <td style={{padding: '10px'}}>{conv.offer_title}</td>
-    <td style={{padding: '10px'}}>{conv.partner_id}</td>
-    <td style={{padding: '10px'}}>{conv.goal_value}</td>
-    <td style={{padding: '10px'}}>
+    <td style={{padding: '8px'}}>{conv.id}</td>
+    <td style={{padding: '8px'}}>{conv.offer_title}</td>
+    <td style={{padding: '8px'}}>{conv.partner_id}</td>
+    <td style={{padding: '8px'}}>{conv.goal_value}</td>
+    <td style={{padding: '8px'}}>
     <span style={{
-    padding: '4px 8px',
+    padding: '3px 6px',
     borderRadius: '3px',
     background: conv.status === 'confirmed' ? '#d4edda' : '#fff3cd',
     color: conv.status === 'confirmed' ? '#155724' : '#856404',
-    fontSize: '12px'
+    fontSize: '11px'
     }}>
     {conv.status}
     </span>
     </td>
-    <td style={{padding: '10px', textAlign: 'right'}}>{formatNumber(conv.revenue)}</td>
-    <td style={{padding: '10px', textAlign: 'right', fontWeight: '600', color: '#667eea'}}>{formatNumber(conv.earnings)}</td>
-    <td style={{padding: '10px', fontSize: '12px'}}>{conv.created_at ? new Date(conv.created_at).toLocaleDateString('ru-RU') : '-'}</td>
+    <td style={{padding: '8px', textAlign: 'right'}}>{formatNumber(conv.revenue)}</td>
+    <td style={{padding: '8px', textAlign: 'right', fontWeight: '600', color: '#667eea'}}>{formatNumber(conv.earnings)}</td>
+    <td style={{padding: '8px', fontSize: '11px'}}>{conv.created_at ? new Date(conv.created_at).toLocaleDateString('ru-RU') : '-'}</td>
     </tr>
     ))}
     </tbody>
     </table>
     {data.conversions.length > 100 && (
-    <p style={{marginTop: '10px', color: '#666', fontSize: '12px'}}>
+    <p style={{marginTop: '10px', color: '#666', fontSize: '11px'}}>
     Показано 100 из {data.conversions.length} записей
     </p>
     )}
@@ -519,34 +629,34 @@
     {/* Таблица офферов */}
     {activeTab === 'offers' && (
     <div style={{overflowX: 'auto'}}>
-    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
     <thead>
     <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Title</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Status</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Advertiser</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Privacy</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Title</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Status</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Advertiser</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Privacy</th>
     </tr>
     </thead>
     <tbody>
     {data.offers.map((offer, idx) => (
     <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-    <td style={{padding: '10px'}}>{offer.offer_id}</td>
-    <td style={{padding: '10px'}}>{offer.title}</td>
-    <td style={{padding: '10px'}}>
+    <td style={{padding: '8px'}}>{offer.offer_id}</td>
+    <td style={{padding: '8px'}}>{offer.title}</td>
+    <td style={{padding: '8px'}}>
     <span style={{
-    padding: '4px 8px',
+    padding: '3px 6px',
     borderRadius: '3px',
     background: offer.status === 'active' ? '#d4edda' : '#f8d7da',
     color: offer.status === 'active' ? '#155724' : '#721c24',
-    fontSize: '12px'
+    fontSize: '11px'
     }}>
     {offer.status}
     </span>
     </td>
-    <td style={{padding: '10px'}}>{offer.advertiser}</td>
-    <td style={{padding: '10px'}}>{offer.privacy}</td>
+    <td style={{padding: '8px'}}>{offer.advertiser}</td>
+    <td style={{padding: '8px'}}>{offer.privacy}</td>
     </tr>
     ))}
     </tbody>
@@ -557,34 +667,34 @@
     {/* Таблица лимитов */}
     {activeTab === 'limits' && (
     <div style={{overflowX: 'auto'}}>
-    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '12px'}}>
     <thead>
     <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal ID</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal Name</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Affiliate ID</th>
-    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Current Value</th>
-    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Limit</th>
-    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Type</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Goal ID</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Goal Name</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Affiliate ID</th>
+    <th style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>Current Value</th>
+    <th style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>Limit</th>
+    <th style={{padding: '10px', textAlign: 'left', fontWeight: '600'}}>Type</th>
     </tr>
     </thead>
     <tbody>
     {data.limits.slice(0, 100).map((limit, idx) => (
     <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-    <td style={{padding: '10px'}}>{limit.offer_id}</td>
-    <td style={{padding: '10px'}}>{limit.goal_id}</td>
-    <td style={{padding: '10px'}}>{limit.goal_name}</td>
-    <td style={{padding: '10px'}}>{limit.affiliate_id}</td>
-    <td style={{padding: '10px', textAlign: 'right'}}>{formatNumber(limit.current_value)}</td>
-    <td style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>{formatNumber(limit.value)}</td>
-    <td style={{padding: '10px'}}>{limit.type}</td>
+    <td style={{padding: '8px'}}>{limit.offer_id}</td>
+    <td style={{padding: '8px'}}>{limit.goal_id}</td>
+    <td style={{padding: '8px'}}>{limit.goal_name}</td>
+    <td style={{padding: '8px'}}>{limit.affiliate_id}</td>
+    <td style={{padding: '8px', textAlign: 'right'}}>{formatNumber(limit.current_value)}</td>
+    <td style={{padding: '8px', textAlign: 'right', fontWeight: '600'}}>{formatNumber(limit.value)}</td>
+    <td style={{padding: '8px'}}>{limit.type}</td>
     </tr>
     ))}
     </tbody>
     </table>
     {data.limits.length > 100 && (
-    <p style={{marginTop: '10px', color: '#666', fontSize: '12px'}}>
+    <p style={{marginTop: '10px', color: '#666', fontSize: '11px'}}>
     Показано 100 из {data.limits.length} записей
     </p>
     )}
@@ -612,5 +722,11 @@
 
     ReactDOM.render(<App />, document.getElementById('root'));
     </script>
+    <style>
+    @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+    }
+    </style>
 </body>
 </html>
