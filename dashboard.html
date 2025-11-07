@@ -8,67 +8,6 @@
     <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-    .filter-dropdown {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    }
-    .filter-button {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    text-align: left;
-    cursor: pointer;
-    font-size: 14px;
-    }
-    .filter-button:hover {
-    border-color: #9ca3af;
-    }
-    .filter-menu {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    max-height: 300px;
-    overflow-y: auto;
-    z-index: 1000;
-    margin-top: 4px;
-    }
-    .filter-dropdown:hover .filter-menu {
-    display: block;
-    }
-    .filter-item {
-    padding: 8px 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    }
-    .filter-item:hover {
-    background: #f3f4f6;
-    }
-    .filter-checkbox {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    }
-    .sortable-header {
-    cursor: pointer;
-    user-select: none;
-    }
-    .sortable-header:hover {
-    background: #f3f4f6;
-    }
-    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -76,9 +15,11 @@
     <script type="text/babel">
     const { useState, useEffect } = React;
 
+    // API конфигурация
     const API_URL = 'https://affise-backend-production.up.railway.app';
 
     function App() {
+    const [activeTab, setActiveTab] = useState('analytics');
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null);
     const [showLogin, setShowLogin] = useState(!token);
@@ -148,10 +89,41 @@
     Выход
     </button>
     </div>
+    <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+    <button 
+    style={{
+    padding: '10px 20px',
+    background: activeTab === 'analytics' ? 'white' : 'rgba(255,255,255,0.2)',
+    color: activeTab === 'analytics' ? '#667eea' : 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontWeight: activeTab === 'analytics' ? '600' : 'normal'
+    }}
+    onClick={() => setActiveTab('analytics')}
+    >
+    Аналитика
+    </button>
+    <button 
+    style={{
+    padding: '10px 20px',
+    background: activeTab === 'limits' ? 'white' : 'rgba(255,255,255,0.2)',
+    color: activeTab === 'limits' ? '#667eea' : 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontWeight: activeTab === 'limits' ? '600' : 'normal'
+    }}
+    onClick={() => setActiveTab('limits')}
+    >
+    Управление лимитами
+    </button>
+    </div>
     </div>
 
     <div style={{maxWidth: '1400px', margin: '0 auto', padding: '20px'}}>
-    <Dashboard2 token={token} />
+    {activeTab === 'analytics' && <Dashboard2 token={token} />}
+    {activeTab === 'limits' && <Dashboard1 />}
     </div>
     </div>
     );
@@ -286,28 +258,17 @@
     }
 
     function Dashboard2({ token }) {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [data, setData] = useState(null);
+    const [activeTab, setActiveTab] = useState('metrics');
 
-    const [selectedAdvertisers, setSelectedAdvertisers] = useState([]);
-    const [selectedSources, setSelectedSources] = useState([]);
-    const [selectedOffers, setSelectedOffers] = useState([]);
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [minOP, setMinOP] = useState(0);
-    const [sortField1, setSortField1] = useState('source');
-    const [sortDirection1, setSortDirection1] = useState('asc');
-    const [sortField2, setSortField2] = useState('source');
-    const [sortDirection2, setSortDirection2] = useState('asc');
-
+    // Загрузка данных при изменении дат
     useEffect(() => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    setDateFrom(yesterdayStr);
-    setDateTo(yesterdayStr);
-    }, []);
+    handleLoadData();
+    }, [dateFrom, dateTo]);
 
     const handleLoadData = async () => {
     setLoading(true);
@@ -335,425 +296,316 @@
     }
     };
 
-    if (!data) {
+    const formatNumber = (num) => {
+    if (num === null || num === undefined) return '0';
+    return parseFloat(num).toLocaleString('ru-RU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+    });
+    };
+
+    const MetricCard = ({ title, value, unit = '', color = '#667eea' }) => (
+    <div style={{
+    background: 'white',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    padding: '20px',
+    textAlign: 'center',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    }}>
+    <div style={{fontSize: '14px', color: '#666', marginBottom: '10px'}}>
+    {title}
+    </div>
+    <div style={{fontSize: '28px', fontWeight: 'bold', color: color}}>
+    {formatNumber(value)}{unit}
+    </div>
+    </div>
+    );
+
     return (
+    <div style={{minHeight: '100vh', background: '#f5f5f5'}}>
+    {/* Фильтры */}
+    <div style={{background: 'white', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+    <h2 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
+    📅 Фильтры
+    </h2>
+    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', alignItems: 'flex-end'}}>
     <div>
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-    <h3 className="font-semibold mb-3">Выбор периода</h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-    <div>
-    <label className="block text-sm mb-1">Дата от</label>
+    <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333', fontSize: '14px'}}>
+    Дата начала
+    </label>
     <input
     type="date"
-    className="w-full border rounded p-2"
     value={dateFrom}
     onChange={(e) => setDateFrom(e.target.value)}
+    style={{
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '5px',
+    fontSize: '14px',
+    boxSizing: 'border-box'
+    }}
     />
     </div>
     <div>
-    <label className="block text-sm mb-1">Дата до</label>
+    <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333', fontSize: '14px'}}>
+    Дата окончания
+    </label>
     <input
     type="date"
-    className="w-full border rounded p-2"
     value={dateTo}
     onChange={(e) => setDateTo(e.target.value)}
+    style={{
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '5px',
+    fontSize: '14px',
+    boxSizing: 'border-box'
+    }}
     />
     </div>
-    <div>
-    <button
-    onClick={handleLoadData}
-    disabled={loading}
-    className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-    >
-    {loading ? '⏳ Загрузка...' : '📊 Загрузить'}
-    </button>
+    {loading && (
+    <div style={{color: '#667eea', fontWeight: '600', fontSize: '14px'}}>
+    ⏳ Загрузка данных...
     </div>
+    )}
     </div>
     </div>
 
     {error && (
-    <div className="bg-red-50 border border-red-300 rounded p-4 mb-6">
-    <div className="text-red-600">❌ {error}</div>
+    <div style={{
+    background: '#fee',
+    color: '#c33',
+    padding: '15px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #fcc'
+    }}>
+    ❌ {error}
     </div>
     )}
 
-    {!loading && !error && (
-    <div className="bg-white rounded-lg shadow p-6 text-center">
-    <p className="text-gray-600">👆 Выберите период и нажмите "Загрузить"</p>
+    {data && (
+    <>
+    {/* Метрики */}
+    <div style={{background: 'white', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+    <h2 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333'}}>
+    📈 Ключевые метрики
+    </h2>
+    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px'}}>
+    <MetricCard title="ОП (Общая прибыль)" value={data.metrics.op} color="#3b82f6" />
+    <MetricCard title="ОРБ (Рекламный бюджет)" value={data.metrics.orb} color="#10b981" />
+    <MetricCard title="Конверсии" value={data.metrics.conversions} color="#a855f7" />
+    <MetricCard title="ROMI" value={data.metrics.romi} unit="%" color="#f97316" />
+    <MetricCard title="Активные офферы" value={data.metrics.active_offers} color="#ec4899" />
+    <MetricCard title="Активные партнёры" value={data.metrics.active_partners} color="#6366f1" />
+    <MetricCard title="Заказы" value={data.metrics.orders} color="#14b8a6" />
+    <MetricCard title="Доход" value={data.metrics.income} color="#eab308" />
     </div>
+    </div>
+
+    {/* Табы для таблиц */}
+    <div style={{background: 'white', borderRadius: '8px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+    <div style={{display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #e0e0e0', paddingBottom: '10px', flexWrap: 'wrap'}}>
+    <button
+    onClick={() => setActiveTab('metrics')}
+    style={{
+    padding: '10px 20px',
+    background: activeTab === 'metrics' ? '#667eea' : '#f0f0f0',
+    color: activeTab === 'metrics' ? 'white' : '#333',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontWeight: activeTab === 'metrics' ? '600' : 'normal'
+    }}
+    >
+    📊 Метрики
+    </button>
+    <button
+    onClick={() => setActiveTab('conversions')}
+    style={{
+    padding: '10px 20px',
+    background: activeTab === 'conversions' ? '#667eea' : '#f0f0f0',
+    color: activeTab === 'conversions' ? 'white' : '#333',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontWeight: activeTab === 'conversions' ? '600' : 'normal'
+    }}
+    >
+    Конверсии ({data.total_conversions})
+    </button>
+    <button
+    onClick={() => setActiveTab('offers')}
+    style={{
+    padding: '10px 20px',
+    background: activeTab === 'offers' ? '#667eea' : '#f0f0f0',
+    color: activeTab === 'offers' ? 'white' : '#333',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontWeight: activeTab === 'offers' ? '600' : 'normal'
+    }}
+    >
+    Офферы ({data.total_offers})
+    </button>
+    <button
+    onClick={() => setActiveTab('limits')}
+    style={{
+    padding: '10px 20px',
+    background: activeTab === 'limits' ? '#667eea' : '#f0f0f0',
+    color: activeTab === 'limits' ? 'white' : '#333',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontWeight: activeTab === 'limits' ? '600' : 'normal'
+    }}
+    >
+    Лимиты ({data.total_limits})
+    </button>
+    </div>
+
+    {/* Таблица конверсий */}
+    {activeTab === 'conversions' && (
+    <div style={{overflowX: 'auto'}}>
+    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+    <thead>
+    <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>ID</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Partner</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Status</th>
+    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Revenue</th>
+    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Earnings</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Created</th>
+    </tr>
+    </thead>
+    <tbody>
+    {data.conversions.slice(0, 100).map((conv, idx) => (
+    <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+    <td style={{padding: '10px'}}>{conv.id}</td>
+    <td style={{padding: '10px'}}>{conv.offer_title}</td>
+    <td style={{padding: '10px'}}>{conv.partner_id}</td>
+    <td style={{padding: '10px'}}>{conv.goal_value}</td>
+    <td style={{padding: '10px'}}>
+    <span style={{
+    padding: '4px 8px',
+    borderRadius: '3px',
+    background: conv.status === 'confirmed' ? '#d4edda' : '#fff3cd',
+    color: conv.status === 'confirmed' ? '#155724' : '#856404',
+    fontSize: '12px'
+    }}>
+    {conv.status}
+    </span>
+    </td>
+    <td style={{padding: '10px', textAlign: 'right'}}>{formatNumber(conv.revenue)}</td>
+    <td style={{padding: '10px', textAlign: 'right', fontWeight: '600', color: '#667eea'}}>{formatNumber(conv.earnings)}</td>
+    <td style={{padding: '10px', fontSize: '12px'}}>{conv.created_at ? new Date(conv.created_at).toLocaleDateString('ru-RU') : '-'}</td>
+    </tr>
+    ))}
+    </tbody>
+    </table>
+    {data.conversions.length > 100 && (
+    <p style={{marginTop: '10px', color: '#666', fontSize: '12px'}}>
+    Показано 100 из {data.conversions.length} записей
+    </p>
+    )}
+    </div>
+    )}
+
+    {/* Таблица офферов */}
+    {activeTab === 'offers' && (
+    <div style={{overflowX: 'auto'}}>
+    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+    <thead>
+    <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Title</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Status</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Advertiser</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Privacy</th>
+    </tr>
+    </thead>
+    <tbody>
+    {data.offers.map((offer, idx) => (
+    <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+    <td style={{padding: '10px'}}>{offer.offer_id}</td>
+    <td style={{padding: '10px'}}>{offer.title}</td>
+    <td style={{padding: '10px'}}>
+    <span style={{
+    padding: '4px 8px',
+    borderRadius: '3px',
+    background: offer.status === 'active' ? '#d4edda' : '#f8d7da',
+    color: offer.status === 'active' ? '#155724' : '#721c24',
+    fontSize: '12px'
+    }}>
+    {offer.status}
+    </span>
+    </td>
+    <td style={{padding: '10px'}}>{offer.advertiser}</td>
+    <td style={{padding: '10px'}}>{offer.privacy}</td>
+    </tr>
+    ))}
+    </tbody>
+    </table>
+    </div>
+    )}
+
+    {/* Таблица лимитов */}
+    {activeTab === 'limits' && (
+    <div style={{overflowX: 'auto'}}>
+    <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+    <thead>
+    <tr style={{background: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Offer ID</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal ID</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Goal Name</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Affiliate ID</th>
+    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Current Value</th>
+    <th style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>Limit</th>
+    <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Type</th>
+    </tr>
+    </thead>
+    <tbody>
+    {data.limits.slice(0, 100).map((limit, idx) => (
+    <tr key={idx} style={{borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+    <td style={{padding: '10px'}}>{limit.offer_id}</td>
+    <td style={{padding: '10px'}}>{limit.goal_id}</td>
+    <td style={{padding: '10px'}}>{limit.goal_name}</td>
+    <td style={{padding: '10px'}}>{limit.affiliate_id}</td>
+    <td style={{padding: '10px', textAlign: 'right'}}>{formatNumber(limit.current_value)}</td>
+    <td style={{padding: '10px', textAlign: 'right', fontWeight: '600'}}>{formatNumber(limit.value)}</td>
+    <td style={{padding: '10px'}}>{limit.type}</td>
+    </tr>
+    ))}
+    </tbody>
+    </table>
+    {data.limits.length > 100 && (
+    <p style={{marginTop: '10px', color: '#666', fontSize: '12px'}}>
+    Показано 100 из {data.limits.length} записей
+    </p>
+    )}
+    </div>
+    )}
+    </div>
+    </>
     )}
     </div>
     );
     }
 
-    const conversions = data.conversions || [];
-    const metrics = data.metrics || {};
-
-    const getSourceCategory = (sourceName) => {
-    if (!sourceName || sourceName === 'Неизвестно') return 'Другие';
-    const name = sourceName.toUpperCase();
-    if (name.includes('ВК')) return 'ВК';
-    if (name.includes('ОЕР')) return 'ОЕР';
-    if (name.includes('ЕР')) return 'ЕР';
-    if (name.includes('ТГ')) return 'ТГ';
-    if (name.includes('ЯД')) return 'ЯД';
-    if (name.includes('СИСТЕМН')) return 'Системные';
-    return 'Другие';
-    };
-
-    const getFilteredConversions = () => {
-    let filtered = conversions;
-
-    if (selectedAdvertisers.length > 0) {
-    filtered = filtered.filter(c => selectedAdvertisers.includes(c.advertiser_title));
-    }
-
-    if (selectedSources.length > 0) {
-    filtered = filtered.filter(c => {
-    const category = getSourceCategory(c.source);
-    return selectedSources.includes(category);
-    });
-    }
-
-    if (selectedOffers.length > 0) {
-    filtered = filtered.filter(c => selectedOffers.includes(String(c.offer_id)));
-    }
-
-    return filtered;
-    };
-
-    const filtered = getFilteredConversions();
-    const validGoalValues = [1, 2, 5, 10];
-    const validFiltered = filtered.filter(c => validGoalValues.includes(c.goal_value) && c.status === 'confirmed');
-
-    const op = validFiltered.reduce((sum, c) => sum + parseFloat(c.earnings || 0), 0);
-    const orb = validFiltered.reduce((sum, c) => sum + parseFloat(c.revenue || 0), 0);
-    const conversionsCount = validFiltered.filter(c => c.revenue && parseFloat(c.revenue) !== 0).length;
-
-    const activeOffersCount = Object.values(
-    validFiltered.reduce((acc, c) => {
-    const offerId = c.offer_id;
-    if (!acc[offerId]) acc[offerId] = 0;
-    acc[offerId] += parseFloat(c.earnings || 0);
-    return acc;
-    }, {})
-    ).filter(v => v >= 5000).length;
-
-    const activePartners = Object.values(
-    validFiltered.reduce((acc, c) => {
-    const partnerId = c.partner_id;
-    if (!acc[partnerId]) acc[partnerId] = 0;
-    acc[partnerId] += parseFloat(c.earnings || 0);
-    return acc;
-    }, {})
-    ).filter(v => v >= 5000).length;
-
-    const orders = filtered
-    .filter(c => c.goal_value === 4)
-    .reduce((sum, c) => sum + parseFloat(c.sum || 0), 0);
-
-    const income = filtered
-    .filter(c => validGoalValues.includes(c.goal_value))
-    .reduce((sum, c) => sum + parseFloat(c.sum || 0), 0);
-
-    const romi = orb > 0 ? (income / orb * 100) : 0;
-
-    const uniqueAdvertisers = [...new Set(conversions.map(c => c.advertiser_title).filter(Boolean))];
-    const uniqueSources = ['ВК', 'ЕР', 'ОЕР', 'ТГ', 'ЯД', 'Другие', 'Системные'];
-    const uniqueOffers = [...new Set(conversions.map(c => String(c.offer_id)).filter(Boolean))].sort((a, b) => a - b);
-
-    const daysDiff = dateFrom && dateTo ? 
-    Math.max(1, Math.ceil((new Date(dateTo) - new Date(dateFrom)) / (1000 * 60 * 60 * 24))) : 1;
-
-    const sourceStats = {};
-    validFiltered.forEach(c => {
-    const category = getSourceCategory(c.source);
-    if (!sourceStats[category]) {
-    sourceStats[category] = { op: 0 };
-    }
-    sourceStats[category].op += parseFloat(c.earnings || 0);
-    });
-
-    const sourceOrder = ['ВК', 'ЕР', 'ОЕР', 'ТГ', 'ЯД', 'Другие', 'Системные'];
-    let sourceTableData = sourceOrder.map(source => ({
-    source,
-    op: sourceStats[source]?.op || 0,
-    opPerDay: (sourceStats[source]?.op || 0) / daysDiff
-    }));
-
-    sourceTableData.sort((a, b) => {
-    let valA = a[sortField1];
-    let valB = b[sortField1];
-    if (sortField1 === 'source') {
-    return sortDirection1 === 'asc' ? 
-    sourceOrder.indexOf(valA) - sourceOrder.indexOf(valB) : 
-    sourceOrder.indexOf(valB) - sourceOrder.indexOf(valA);
-    }
-    return sortDirection1 === 'asc' ? valA - valB : valB - valA;
-    });
-
-    const webmastersBySource = {};
-    validFiltered.forEach(c => {
-    const category = getSourceCategory(c.source);
-    const partnerId = c.partner_id;
-    if (!webmastersBySource[category]) {
-    webmastersBySource[category] = {};
-    }
-    if (!webmastersBySource[category][partnerId]) {
-    webmastersBySource[category][partnerId] = 0;
-    }
-    webmastersBySource[category][partnerId] += parseFloat(c.earnings || 0);
-    });
-
-    let webmasterTableData = sourceOrder.map(source => {
-    const partners = webmastersBySource[source] || {};
-    const count = Object.values(partners).filter(op => op >= minOP).length;
-    return { source, count };
-    });
-
-    webmasterTableData.sort((a, b) => {
-    let valA = a[sortField2];
-    let valB = b[sortField2];
-    if (sortField2 === 'source') {
-    return sortDirection2 === 'asc' ? 
-    sourceOrder.indexOf(valA) - sourceOrder.indexOf(valB) : 
-    sourceOrder.indexOf(valB) - sourceOrder.indexOf(valA);
-    }
-    return sortDirection2 === 'asc' ? valA - valB : valB - valA;
-    });
-
+    function Dashboard1() {
     return (
-    <div>
-    <h2 className="text-2xl font-bold mb-6">Dashboard - Аналитика</h2>
-
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">ОП</div>
-    <div className="text-2xl font-bold">{op.toFixed(2)}</div>
-    </div>
-    <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">ОРБ</div>
-    <div className="text-2xl font-bold">{orb.toFixed(2)}</div>
-    </div>
-    <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">Конверсии</div>
-    <div className="text-2xl font-bold">{conversionsCount}</div>
-    </div>
-    <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">ROMI</div>
-    <div className="text-2xl font-bold">{romi.toFixed(2)}%</div>
-    </div>
-    <div className="bg-gradient-to-br from-pink-500 to-pink-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">Активные офферы</div>
-    <div className="text-2xl font-bold">{activeOffersCount}</div>
-    </div>
-    <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">Активные партнёры</div>
-    <div className="text-2xl font-bold">{activePartners}</div>
-    </div>
-    <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">Заказы</div>
-    <div className="text-2xl font-bold">{orders.toFixed(2)}</div>
-    </div>
-    <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-4 rounded-lg shadow">
-    <div className="text-sm opacity-90">Доход</div>
-    <div className="text-2xl font-bold">{income.toFixed(2)}</div>
-    </div>
-    </div>
-
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-    <h3 className="font-semibold mb-3">Фильтры</h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-    <div>
-    <label className="block text-sm mb-1">Рекламодатель ({uniqueAdvertisers.length})</label>
-    <div className="filter-dropdown">
-    <button className="filter-button">
-    {selectedAdvertisers.length === 0 ? 'Все' : `Выбрано: ${selectedAdvertisers.length}`}
-    </button>
-    <div className="filter-menu">
-    <div className="filter-item" onClick={() => setSelectedAdvertisers([])}>
-    <input type="checkbox" className="filter-checkbox" checked={selectedAdvertisers.length === 0} readOnly />
-    <span>Все</span>
-    </div>
-    {uniqueAdvertisers.map(a => (
-    <div key={a} className="filter-item" onClick={() => {
-    if (selectedAdvertisers.includes(a)) {
-    setSelectedAdvertisers(selectedAdvertisers.filter(x => x !== a));
-    } else {
-    setSelectedAdvertisers([...selectedAdvertisers, a]);
-    }
-    }}>
-    <input type="checkbox" className="filter-checkbox" checked={selectedAdvertisers.includes(a)} readOnly />
-    <span>{a}</span>
-    </div>
-    ))}
-    </div>
-    </div>
-    </div>
-    <div>
-    <label className="block text-sm mb-1">Источник ({uniqueSources.length})</label>
-    <div className="filter-dropdown">
-    <button className="filter-button">
-    {selectedSources.length === 0 ? 'Все' : `Выбрано: ${selectedSources.length}`}
-    </button>
-    <div className="filter-menu">
-    <div className="filter-item" onClick={() => setSelectedSources([])}>
-    <input type="checkbox" className="filter-checkbox" checked={selectedSources.length === 0} readOnly />
-    <span>Все</span>
-    </div>
-    {uniqueSources.map(s => (
-    <div key={s} className="filter-item" onClick={() => {
-    if (selectedSources.includes(s)) {
-    setSelectedSources(selectedSources.filter(x => x !== s));
-    } else {
-    setSelectedSources([...selectedSources, s]);
-    }
-    }}>
-    <input type="checkbox" className="filter-checkbox" checked={selectedSources.includes(s)} readOnly />
-    <span>{s}</span>
-    </div>
-    ))}
-    </div>
-    </div>
-    </div>
-    <div>
-    <label className="block text-sm mb-1">Оффер ({uniqueOffers.length})</label>
-    <div className="filter-dropdown">
-    <button className="filter-button">
-    {selectedOffers.length === 0 ? 'Все' : `Выбрано: ${selectedOffers.length}`}
-    </button>
-    <div className="filter-menu">
-    <div className="filter-item" onClick={() => setSelectedOffers([])}>
-    <input type="checkbox" className="filter-checkbox" checked={selectedOffers.length === 0} readOnly />
-    <span>Все</span>
-    </div>
-    {uniqueOffers.map(o => (
-    <div key={o} className="filter-item" onClick={() => {
-    if (selectedOffers.includes(o)) {
-    setSelectedOffers(selectedOffers.filter(x => x !== o));
-    } else {
-    setSelectedOffers([...selectedOffers, o]);
-    }
-    }}>
-    <input type="checkbox" className="filter-checkbox" checked={selectedOffers.includes(o)} readOnly />
-    <span>{o}</span>
-    </div>
-    ))}
-    </div>
-    </div>
-    </div>
-    <div>
-    <label className="block text-sm mb-1">Дата от</label>
-    <input type="date" className="w-full border rounded p-2" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-    </div>
-    <div>
-    <label className="block text-sm mb-1">Дата до</label>
-    <input type="date" className="w-full border rounded p-2" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-    </div>
-    </div>
-    </div>
-
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-    <h3 className="font-semibold mb-3">ОП по источникам</h3>
-    <div className="text-sm text-gray-600 mb-2">Период: {daysDiff} {daysDiff === 1 ? 'день' : daysDiff < 5 ? 'дня' : 'дней'}</div>
-    <table className="w-full text-sm">
-    <thead>
-    <tr className="border-b">
-    <th className="text-left py-2 px-3 sortable-header" onClick={() => {
-    if (sortField1 === 'source') {
-    setSortDirection1(sortDirection1 === 'asc' ? 'desc' : 'asc');
-    } else {
-    setSortField1('source');
-    setSortDirection1('asc');
-    }
-    }}>
-    Источник {sortField1 === 'source' && (sortDirection1 === 'asc' ? '↑' : '↓')}
-    </th>
-    <th className="text-right py-2 px-3 sortable-header" onClick={() => {
-    if (sortField1 === 'op') {
-    setSortDirection1(sortDirection1 === 'asc' ? 'desc' : 'asc');
-    } else {
-    setSortField1('op');
-    setSortDirection1('desc');
-    }
-    }}>
-    ОП {sortField1 === 'op' && (sortDirection1 === 'asc' ? '↑' : '↓')}
-    </th>
-    <th className="text-right py-2 px-3 sortable-header" onClick={() => {
-    if (sortField1 === 'opPerDay') {
-    setSortDirection1(sortDirection1 === 'asc' ? 'desc' : 'asc');
-    } else {
-    setSortField1('opPerDay');
-    setSortDirection1('desc');
-    }
-    }}>
-    ОП в День {sortField1 === 'opPerDay' && (sortDirection1 === 'asc' ? '↑' : '↓')}
-    </th>
-    </tr>
-    </thead>
-    <tbody>
-    {sourceTableData.map(row => (
-    <tr key={row.source} className="border-b hover:bg-gray-50">
-    <td className="py-2 px-3">{row.source}</td>
-    <td className="text-right py-2 px-3">{row.op.toFixed(2)}</td>
-    <td className="text-right py-2 px-3">{row.opPerDay.toFixed(2)}</td>
-    </tr>
-    ))}
-    </tbody>
-    </table>
-    </div>
-
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-    <div className="flex items-center justify-between mb-3">
-    <h3 className="font-semibold">Активные вебмастеры по источникам</h3>
-    <div className="flex items-center gap-2">
-    <label className="text-sm">Минимальный ОП:</label>
-    <input type="number" className="border rounded px-3 py-1 w-32 text-sm" value={minOP} onChange={(e) => setMinOP(parseFloat(e.target.value) || 0)} placeholder="0" />
-    </div>
-    </div>
-    <table className="w-full text-sm">
-    <thead>
-    <tr className="border-b">
-    <th className="text-left py-2 px-3 sortable-header" onClick={() => {
-    if (sortField2 === 'source') {
-    setSortDirection2(sortDirection2 === 'asc' ? 'desc' : 'asc');
-    } else {
-    setSortField2('source');
-    setSortDirection2('asc');
-    }
-    }}>
-    Источник {sortField2 === 'source' && (sortDirection2 === 'asc' ? '↑' : '↓')}
-    </th>
-    <th className="text-right py-2 px-3 sortable-header" onClick={() => {
-    if (sortField2 === 'count') {
-    setSortDirection2(sortDirection2 === 'asc' ? 'desc' : 'asc');
-    } else {
-    setSortField2('count');
-    setSortDirection2('desc');
-    }
-    }}>
-    Количество вебмастеров {sortField2 === 'count' && (sortDirection2 === 'asc' ? '↑' : '↓')}
-    </th>
-    </tr>
-    </thead>
-    <tbody>
-    {webmasterTableData.map(row => (
-    <tr key={row.source} className="border-b hover:bg-gray-50">
-    <td className="py-2 px-3">{row.source}</td>
-    <td className="text-right py-2 px-3">{row.count}</td>
-    </tr>
-    ))}
-    </tbody>
-    </table>
-    </div>
-
-    <div className="bg-white rounded-lg shadow p-4">
-    <h3 className="font-semibold mb-3">Статистика загрузки</h3>
-    <div className="text-sm text-gray-600 space-y-1">
-    <div>✅ Загружено конверсий: <strong>{conversions.length}</strong></div>
-    <div>📊 Отфильтровано конверсий: <strong>{filtered.length}</strong></div>
-    </div>
-    </div>
+    <div style={{background: 'white', borderRadius: '8px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
+    <h2 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '10px', color: '#333'}}>
+    Управление лимитами
+    </h2>
+    <p style={{color: '#666'}}>
+    Функция управления лимитами будет реализована в следующей версии
+    </p>
     </div>
     );
     }
