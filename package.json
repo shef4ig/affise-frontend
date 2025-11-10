@@ -1,0 +1,7 @@
+{
+  "name": "affise-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx http-server -p $PORT -c-1"
+  }
+}
